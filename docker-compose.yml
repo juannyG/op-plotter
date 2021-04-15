@@ -1,0 +1,9 @@
+version: '3.4'
+services:
+  op-plotter:
+    build:
+      context: .
+    image: op-plotter:latest
+    working_dir: /app/op-plotter
+    volumes:
+      - .:/app

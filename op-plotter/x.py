@@ -30,11 +30,16 @@ class Plotter:
                 merchant = row['merchantPublicId']
                 dt = datetime.fromtimestamp(int(row['timestamp'])/1000).replace(microsecond=0)
 
-                if not op:
-                    continue
                 if self.conf.start_at and dt < self.conf.start_at:
                     continue
                 if self.conf.end_at and dt > self.conf.end_at:
+                    continue
+
+                self.init_dt(dt)
+
+                if not op:
+                    continue
+                if op in ['pendingPlacementRequest', 'SequentialTaskExecutor', 'placementEnd']:
                     continue
 
                 self.merchant_totals[merchant] = self.merchant_totals.get(merchant, 0) + 1
@@ -47,6 +52,8 @@ class Plotter:
         plt.figure(figsize=(20,5))
         plt = self.plot_from_data(plt)
         plt.legend()
+        if self.conf.title:
+            plt.title(self.conf.title)
         plt.savefig(self.conf.outfile)
 
     def add_row_to_plots(self, row):
@@ -57,6 +64,11 @@ class Plotter:
 
 
 class OperationPlotter(Plotter):
+    def init_dt(self, dt):
+        for op in self.plots:
+            if not self.plots[op].get(dt):
+                self.plots[op][dt] = 0
+
     def add_row_to_plots(self, row, dt):
         self.plots[row['operation']][dt] = self.plots[row['operation']].get(dt, 0) + 1
 
@@ -67,11 +79,17 @@ class OperationPlotter(Plotter):
 
 
 class MerchantPlotter(Plotter):
+    def init_dt(self, dt):
+        for merchant in self.plots:
+            if not self.plots[merchant].get(dt):
+                self.plots[merchant][dt] = 0
+
     def add_row_to_plots(self, row, dt):
         self.plots[row['merchantPublicId']][dt] = self.plots[row['merchantPublicId']].get(dt, 0) + 1
 
     def plot_from_data(self, plt):
         for merchant in self.plots:
+            print(merchant)
             plt.plot(self.plots[merchant].keys(), self.plots[merchant].values(), label=merchant)
         return plt
 
@@ -86,6 +104,7 @@ if __name__ == '__main__':
     parser.add_argument('--include-periodic', action='store_true', default=False)
     parser.add_argument('--filter-merchants', nargs='*')
     parser.add_argument('--plot-operations', action='store_true', default=False)
+    parser.add_argument('--title')
     conf = parser.parse_args()
 
     plotter = OperationPlotter(conf) if conf.plot_operations else MerchantPlotter(conf)
